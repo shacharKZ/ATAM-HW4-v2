@@ -79,6 +79,7 @@ int main() {
     }
 
     unsigned long long prev_rdi = 0;
+    unsigned long long prev_rsi = 0;
     unsigned long long prev_rpi = 0;
     struct user_regs_struct last_regs;
     int wait_status;
@@ -98,10 +99,18 @@ int main() {
         if (regs.orig_rax == SYS_write) {
             blocked = 1;
             prev_rdi = regs.rdi;
-            regs.rdi = 3;
+            prev_rsi = regs.rsi;
+            regs.rdi = 2;
 //            regs.rdi = fileno(fptr);
 //            regs.rdi = 2;
             printf("this is syswrite - before \n");
+            for (long long i = 0; i < regs.rdx; ++i) {
+                char* curr_char = regs.rsi-i;
+                char c = 'd';
+                char* c2 = &c;
+                printf("%c", *curr_char);
+            }
+            printf("\n");
             ptrace(PTRACE_SETREGS, pid, 0, &regs);
         }
 
