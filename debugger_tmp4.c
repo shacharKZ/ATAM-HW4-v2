@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <sys/reg.h>
 #include <sys/user.h>
-#include <sys/syscall.h>   /* For SYS_write etc */
+#include <sys/syscall.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ptrace.h>
