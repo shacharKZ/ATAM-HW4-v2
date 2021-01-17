@@ -47,47 +47,12 @@ int main() {
     unsigned long addr = prev_rip+5; // TODO wtf + 5??? i tried also 0,1,2,3,4
     printf("BP address is %lx \n", addr);
 
-//    unsigned long addr = 0x4000db;
     unsigned long data = ptrace(PTRACE_PEEKTEXT, pid, (void*)addr, NULL);
     printf("DBG: Original data at 0x%x: 0x%x\n", addr, data);
 
     /* Write the trap instruction 'int 3' into the address */
     unsigned long data_trap = (data & 0xFFFFFF00) | 0xCC;
     ptrace(PTRACE_POKETEXT, pid, (void*)addr, (void*)data_trap);
-
-
-
-//    while (WIFSTOPPED(wait_status) && regs.rip != addr+1) {
-//        ptrace(PTRACE_SYSCALL, pid, 0, 0);
-//        wait(&wait_status);
-//
-//        ptrace(PTRACE_GETREGS, pid, 0, &regs);
-//        printf("rip is %llx \n", regs.rip);
-//        if (regs.rip == addr+1) {
-//            printf("BREACK LOOP\n");
-//            break;
-//        }
-//
-//        int blocked = 0;
-//        if (regs.orig_rax == SYS_write) {
-//            blocked = 1;
-//            prev_rdi = regs.rdi;
-//            regs.rdi = redirect_file;
-//            printf("this is syswrite - before \n");
-//            ptrace(PTRACE_SETREGS, pid, 0, &regs);
-//        }
-//
-//        /* Run system call and stop on exit */
-//        ptrace(PTRACE_SYSCALL, pid, 0, 0);
-//        wait(&wait_status);
-//
-//        if (blocked) {
-//            printf("this is syswrite - after \n");
-//            ptrace(PTRACE_GETREGS, pid, 0, &regs);
-//            regs.rdi = prev_rdi;
-//            ptrace(PTRACE_SETREGS, pid, 0, &regs);
-//        }
-//    }
 
 
     while (WIFSTOPPED(wait_status) && addr+1 != regs.rip) {
@@ -125,6 +90,7 @@ int main() {
         }
     }
 
+    close(redirect_file);
     ptrace(PTRACE_GETREGS, pid, 0, &regs);
     printf("DBG: Child stopped at RIP = 0x%x\n", regs.rip);
 
@@ -138,61 +104,6 @@ int main() {
 
     wait(&wait_status);
 
-
-
-//    while (WIFSTOPPED(wait_status)) {
-//        /* Enter next system call */
-//
-//        ptrace(PTRACE_SYSCALL, pid, 0, 0);
-//        wait(&wait_status);
-//
-//        ptrace(PTRACE_GETREGS, pid, 0, &regs);
-//        printf("rip is %llx \n", regs.rip);
-//        if (regs.rip == bp_addr+4) {
-//            printf("BREACK LOOP\n");
-//            break;
-//        }
-//
-//        int blocked = 0;
-//        if (regs.orig_rax == SYS_write) {
-//            blocked = 1;
-//            prev_rdi = regs.rdi;
-//            regs.rdi = redirect_file;
-//            printf("this is syswrite - before \n");
-//            ptrace(PTRACE_SETREGS, pid, 0, &regs);
-//        }
-//
-//        /* Run system call and stop on exit */
-//        ptrace(PTRACE_SYSCALL, pid, 0, 0);
-//        wait(&wait_status);
-//
-//        if (blocked) {
-//            printf("this is syswrite - after \n");
-//            ptrace(PTRACE_GETREGS, pid, 0, &regs);
-//            regs.rdi = prev_rdi;
-//            ptrace(PTRACE_SETREGS, pid, 0, &regs);
-//        }
-//    }
-
-    close(redirect_file);
-
-
-//
-//    ptrace(PTRACE_POKETEXT, pid, (void*)bp_addr, (void*)data);
-//    printf("im out. rip is %llx \n", regs.rip);
-//    regs.rip -= 4;
-//    ptrace(PTRACE_SETREGS, pid, 0, &regs);
-////    ptrace(PTRACE_CONT, pid, 0, 0); // TODO
-//
-////    wait(&wait_status);
-//    while (WIFSTOPPED(wait_status)) {
-//        printf("=== rip is %llx \n", regs.rip);
-//        prev_rip = regs.rip;
-//        ptrace(PTRACE_GETREGS, pid, 0, &regs);
-////        printf("rip is %llx \n", regs.rip);
-//        ptrace(PTRACE_SINGLESTEP, pid, NULL, NULL);
-//        wait(&wait_status);
-//    }
 
 
     return 0;
