@@ -34,8 +34,8 @@ int main(int argc, char * argv[]) {
 //    strcat(program_name, argv[4]);
 //    printf("%s\n", program_name);
 
-    int redirect_file = open(output_file_name, O_CREAT|O_WRONLY|O_APPEND | O_TRUNC);
-    int redirect_file_for_debugger = open(output_file_name, O_WRONLY|O_APPEND);
+    int redirect_file = open(output_file_name, O_CREAT|O_WRONLY|O_APPEND | O_TRUNC, 0666);
+    int redirect_file_for_debugger = open(output_file_name, O_WRONLY|O_APPEND, 0666);
 
     pid_t pid = fork();
     if(pid == 0) {

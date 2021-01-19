@@ -1,5 +1,5 @@
 .section .data
-msg: .ascii "print me to file and maybe also to screen\n"
+msg: .ascii "if given 'm' - print me only to file, if 'c' - also print me to screen\n"
 msg_len: .quad msg_len - msg
 msg2: .ascii "only print to screen\n"
 msg_len2: .quad msg_len2 - msg2
