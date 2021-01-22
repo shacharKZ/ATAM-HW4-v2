@@ -9,11 +9,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 int main(int argc, char * argv[]) {
     if (argc < 5) {
-        // TODO print something about it?
-        return 0;
+        return 0; // TODO print something about it?
     }
 
     const char* function_address = argv[1];
@@ -27,17 +25,8 @@ int main(int argc, char * argv[]) {
     pid_t pid = fork();
     if(pid == 0) {
         ptrace(PTRACE_TRACEME, 0, NULL, NULL);
-        execv(program_name, argv[5]);  // TODO double check this syntax
-        _exit(0);  // uses only if execl fails // TODO print something about execl error?
-
-//        if (argc == 5) {
-//            execl(program_name, argv[5], argc-5);
-//            execl(program_name, program_name, NULL);
-//        }
-//        else {
-//            execl(program_name, argv[5], argc-5);
-//        }
-//        _exit(0);  // uses only if execl fails // TODO print something about execl error?
+        execv(program_name, argv+5);
+        exit(0);  // uses only if execl fails // TODO print something about execv error?
     }
     else if (pid < 0) {
         perror("fork failed");
@@ -105,9 +94,9 @@ int main(int argc, char * argv[]) {
                 regs.rdi = backup_regs.rdi;
                 if (flag_screen_print[0] == 'c') {
                     if (print_to_screen != 0) {
-                        backup_regs.rip -= 2; // TODO why 2??!
+                        backup_regs.rip -= 2; // 2??!
                         regs = backup_regs;
-                        regs.rax = 1; // TODO almost holly bug
+                        regs.rax = 1;
                         print_to_screen = 0;
                     }
                     else {
