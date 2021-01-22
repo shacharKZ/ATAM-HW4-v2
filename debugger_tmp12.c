@@ -27,7 +27,7 @@ int main(int argc, char * argv[]) {
     pid_t pid = fork();
     if(pid == 0) {
         ptrace(PTRACE_TRACEME, 0, NULL, NULL);
-        execl(program_name, argv[5], argc-5);  // TODO double check this syntax
+        execv(program_name, argv[5]);  // TODO double check this syntax
         _exit(0);  // uses only if execl fails // TODO print something about execl error?
 
 //        if (argc == 5) {
@@ -41,7 +41,7 @@ int main(int argc, char * argv[]) {
     }
     else if (pid < 0) {
         perror("fork failed");
-        return 0;
+        exit(1);
     }
 
     unsigned long foo_addr = (int) strtol(function_address, (char **)NULL, 16);
@@ -50,38 +50,38 @@ int main(int argc, char * argv[]) {
 
     wait(&wait_status);
     // firstly, setting a BP at the start of foo func
-    ptrace(PTRACE_GETREGS, pid, 0, &regs);
+    if (ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1) {
+        close(redirect_file);
+        close(redirect_file_for_debugger);
+        perror("ptrace failed");
+        exit(1);
+    }
     unsigned long foo_data = ptrace(PTRACE_PEEKTEXT, pid, (void*)foo_addr, NULL);
     unsigned long data_trap = (foo_data & 0xFFFFFF00) | 0xCC;
-    ptrace(PTRACE_POKETEXT, pid, (void*)foo_addr, (void*)data_trap);
-    ptrace(PTRACE_CONT, pid, NULL, NULL); // and now we start the run of the program
+    if (ptrace(PTRACE_POKETEXT, pid, (void*)foo_addr, (void*)data_trap) == -1 ||
+    ptrace(PTRACE_CONT, pid, NULL, NULL) == -1) {exit(1);} // and now we start the run of the program
     wait(&wait_status);
 
-    ptrace(PTRACE_GETREGS, pid, 0, &regs);
+    if (ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1) {exit(1);}
     while(WIFSTOPPED(wait_status) && regs.rip == foo_addr+1) {
-
-//        if (!WIFSTOPPED(wait_status) || regs.rip != foo_addr+1) { // if did not find function address in the current loop (finish the program)
-//            break;
-//        }
-
         // remove BP from foo and restoring its first instruction (who was overwrite by int3 for the BP)
-        ptrace(PTRACE_POKETEXT, pid, (void*)foo_addr, (void*)foo_data);
+        if (ptrace(PTRACE_POKETEXT, pid, (void*)foo_addr, (void*)foo_data) == -1) {exit(1);}
         regs.rip -= 1; // go one instruction back to start from foo start
-        ptrace(PTRACE_SETREGS, pid, 0, &regs);
+        if (ptrace(PTRACE_SETREGS, pid, 0, &regs) == -1) {exit(1);}
 
         // adding a BP at the returning address from foo (assume its found at the top of the stack)
         unsigned long bp_addr = ptrace(PTRACE_PEEKTEXT, pid, (void*)regs.rsp, NULL);
         unsigned long bp_data = ptrace(PTRACE_PEEKTEXT, pid, (void*)bp_addr, NULL);
         data_trap = (bp_data & 0xFFFFFF00) | 0xCC;
-        ptrace(PTRACE_POKETEXT, pid, (void*)bp_addr, (void*)data_trap);
+        if (ptrace(PTRACE_POKETEXT, pid, (void*)bp_addr, (void*)data_trap) == -1) {exit(1);}
 
         int print_to_screen = 1;
         while (WIFSTOPPED(wait_status) && bp_addr+1 != regs.rip) { // now run foo from syscall to syscall
-            ptrace(PTRACE_SYSCALL, pid, 0, 0);
+            if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1) {exit(1);}
             wait(&wait_status);
 
             struct user_regs_struct backup_regs;
-            ptrace(PTRACE_GETREGS, pid, 0, &regs);
+            if (ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1) {exit(1);}
             if (regs.rip == bp_addr+1) {
                 break; // the debugger encounter the returning address BP, so out of the foo reading section
             }
@@ -94,14 +94,14 @@ int main(int argc, char * argv[]) {
                     write(redirect_file_for_debugger, "PRF:: ", 6);
                     regs.rdi = redirect_file;
                 }
-                ptrace(PTRACE_SETREGS, pid, 0, &regs);
+                if (ptrace(PTRACE_SETREGS, pid, 0, &regs) == -1) {exit(1);}
             }
 
-            ptrace(PTRACE_SYSCALL, pid, 0, 0);
+            if (ptrace(PTRACE_SYSCALL, pid, 0, 0) == -1) {exit(1);}
             wait(&wait_status);
 
             if (is_syswrite) {
-                ptrace(PTRACE_GETREGS, pid, 0, &regs);
+                if (ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1) {exit(1);}
                 regs.rdi = backup_regs.rdi;
                 if (flag_screen_print[0] == 'c') {
                     if (print_to_screen != 0) {
@@ -114,30 +114,30 @@ int main(int argc, char * argv[]) {
                         ++print_to_screen;
                     }
                 }
-                ptrace(PTRACE_SETREGS, pid, 0, &regs);
+                if (ptrace(PTRACE_SETREGS, pid, 0, &regs) == -1) {exit(1);}
             }
         }
 
-        ptrace(PTRACE_GETREGS, pid, 0, &regs);
+        if (ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1) {exit(1);}
 
         // remove the BP from the returning address
-        ptrace(PTRACE_POKETEXT, pid, (void*)bp_addr, (void*)bp_data);
+        if (ptrace(PTRACE_POKETEXT, pid, (void*)bp_addr, (void*)bp_data) == -1) {exit(1);}
         regs.rip -= 1;
-        ptrace(PTRACE_SETREGS, pid, 0, &regs);
+        if (ptrace(PTRACE_SETREGS, pid, 0, &regs) == -1) {exit(1);}
 
 
         // setting a BP at the start of foo func AGAIN, in case it will be called once more
-        ptrace(PTRACE_GETREGS, pid, 0, &regs);
+        if (ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1) {exit(1);}
         unsigned long foo_data = ptrace(PTRACE_PEEKTEXT, pid, (void*)foo_addr, NULL);
         unsigned long data_trap = (foo_data & 0xFFFFFF00) | 0xCC;
-        ptrace(PTRACE_POKETEXT, pid, (void*)foo_addr, (void*)data_trap);
-        ptrace(PTRACE_CONT, pid, NULL, NULL); // and now continue the run of the program
+        if (ptrace(PTRACE_POKETEXT, pid, (void*)foo_addr, (void*)data_trap) == -1) {exit(1);}
+        if (ptrace(PTRACE_CONT, pid, NULL, NULL) == -1) {exit(1);} // and now continue the run of the program
         /* if we will encounter foo BP (again) - we will loop again
          * else we will get to the end of debugging program and than this program will finish also
         */
          wait(&wait_status);
 
-        ptrace(PTRACE_GETREGS, pid, 0, &regs);
+        if (ptrace(PTRACE_GETREGS, pid, 0, &regs) == -1) {exit(1);}
     }
 
     close(redirect_file);
